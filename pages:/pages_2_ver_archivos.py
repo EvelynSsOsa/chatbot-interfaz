@@ -1,48 +1,63 @@
-# pages/2_Procesar_PDF.py
 import streamlit as st
 import os
-import numpy as np
-import faiss
 import pickle
+import faiss
+import numpy as np
 from sentence_transformers import SentenceTransformer
-from text_processor import dividir_texto_en_chunks, extraer_texto_de_pdf
+from PyPDF2 import PdfReader
 
-st.set_page_config(page_title="Procesar PDF Subido", page_icon="⚙️")
-st.title("⚙️ Procesar PDF Subido")
+# Configuración
+st.set_page_config(page_title="Procesar PDF", page_icon="🧠")
+st.title("🧠 Procesar PDF y Generar Índice FAISS")
 
-# Ruta de los PDFs subidos
-pdf_dir = "pdfs_subidos"
+# Ruta de PDFs
+pdf_dir = "pdfs_subidos/"
 
-# Listar PDFs disponibles
-pdfs = [f for f in os.listdir(pdf_dir) if f.endswith(".pdf")]
+# Mostrar archivos PDF disponibles
+archivos_pdf = [f for f in os.listdir(pdf_dir) if f.endswith(".pdf")]
 
-if not pdfs:
-    st.warning("No hay archivos PDF disponibles. Sube uno primero en la página 'Subir PDF'.")
-    st.stop()
+if not archivos_pdf:
+    st.warning("No hay archivos PDF en la carpeta pdfs_subidos/")
+else:
+    selected_pdf = st.selectbox("Selecciona un PDF para procesar:", archivos_pdf)
 
-pdf_seleccionado = st.selectbox("Selecciona un PDF para procesar:", pdfs)
+    if st.button("Procesar PDF"):
+        ruta_pdf = os.path.join(pdf_dir, selected_pdf)
 
-if st.button("Procesar este PDF"):
-    with st.spinner("Extrayendo texto y generando embeddings..."):
-        ruta_pdf = os.path.join(pdf_dir, pdf_seleccionado)
-        texto = extraer_texto_de_pdf(ruta_pdf)
-        chunks = dividir_texto_en_chunks(texto)
+        with st.spinner("Extrayendo texto del PDF..."):
+            reader = PdfReader(ruta_pdf)
+            texto = ""
+            for page in reader.pages:
+                texto += page.extract_text() + "\n"
 
-        modelo = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        chunks_with_embeddings = []
-        for fragmento in chunks:
-            embedding = modelo.encode(fragmento)
-            chunks_with_embeddings.append({"text": fragmento, "embedding": embedding})
+        # Dividir en párrafos o fragmentos
+        st.info("Dividiendo el texto en fragmentos...")
+        fragments = [p.strip().replace("\n", " ") for p in texto.split("\n\n") if len(p.strip()) > 30]
 
-        # Guardar textos
-        textos = [c["text"] for c in chunks_with_embeddings]
-        with open("principito_text_chunks.pkl", "wb") as f:
-            pickle.dump(textos, f)
+        st.write(f"Se encontraron {len(fragments)} fragmentos.")
 
-        # Guardar índice
-        embeddings = np.array([c["embedding"] for c in chunks_with_embeddings], dtype=np.float32)
-        index = faiss.IndexFlatL2(embeddings.shape[1])
-        index.add(embeddings)
-        faiss.write_index(index, "principito.index")
+        # Generar embeddings
+        st.info("Generando embeddings...")
+        model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        embeddings = [model.encode(frag) for frag in fragments]
+        embeddings_np = np.array(embeddings, dtype=np.float32)
 
-    st.success("¡PDF procesado correctamente! Ya puedes hacer preguntas desde la página principal.")
+        # Crear índice FAISS
+        st.info("Creando índice FAISS...")
+        dim = embeddings_np.shape[1]
+        index = faiss.IndexFlatL2(dim)
+        index.add(embeddings_np)
+
+        # Guardar índice y textos
+        base_name = os.path.splitext(selected_pdf)[0]
+        index_path = f"{base_name}.index"
+        pkl_path = f"{base_name}_text_chunks.pkl"
+
+        faiss.write_index(index, index_path)
+        with open(pkl_path, "wb") as f:
+            pickle.dump(fragments, f)
+
+        st.success(f"✅ Procesamiento completo. Archivos guardados:")
+        st.code(f"- {index_path}\n- {pkl_path}", language="text")
+
+
