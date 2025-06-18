@@ -8,7 +8,7 @@ st.title("📄 Pregúntale a tu PDF")
 
 st.markdown("""
 ¿Tienes una duda sobre el contenido de un PDF que subiste?
-Escribe tu pregunta abajo y el sistema te responderá usando el contenido del documento.
+Escribe tu pregunta abajo y el nodelo te responderá usando el contenido del documento.
 """)
 
 # Entrada de la pregunta
