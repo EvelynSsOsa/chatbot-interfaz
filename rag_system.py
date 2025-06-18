@@ -1,31 +1,22 @@
-# Este script requiere las siguientes bibliotecas:
-# pip install faiss-cpu numpy transformers torch sentence-transformers
+# rag_system.py
+# Este script ahora funciona con cualquier PDF que se haya subido recientemente a /pdfs_subidos
 
+import os
 import faiss
-import pickle
 import numpy as np
 import torch
+import pickle
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
+from text_processor import procesar_texto_en_chunks
+from pdf_extractor import extraer_texto_de_pdf
 
-# --- Cargar índice FAISS ---
-print("Cargando índice FAISS...")
-index = faiss.read_index("principito.index")
-
-# --- Cargar los fragmentos de texto ---
-print("Cargando fragmentos de texto...")
-with open("principito_text_chunks.pkl", "rb") as f:
-    text_chunks = pickle.load(f)
-
-# --- Cargar modelo de embeddings ---
-print("Cargando modelo de embeddings...")
+# --- Inicializar modelo de embeddings (una sola vez) ---
 embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
-# --- Cargar modelo generativo ---
-print("Cargando modelo generativo...")
+# --- Inicializar modelo generativo (una sola vez) ---
 tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
 modelo_llm = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-125M")
-
 generator = pipeline(
     "text-generation",
     model=modelo_llm,
@@ -33,37 +24,47 @@ generator = pipeline(
     device=0 if torch.cuda.is_available() else -1
 )
 
+# --- Obtener el último PDF subido ---
+def obtener_ultimo_pdf():
+    carpeta = "pdfs_subidos"
+    archivos = [f for f in os.listdir(carpeta) if f.endswith(".pdf")]
+    if not archivos:
+        return None
+    archivos.sort(key=lambda f: os.path.getmtime(os.path.join(carpeta, f)), reverse=True)
+    return os.path.join(carpeta, archivos[0])
+
+# --- Preparar índice FAISS dinámico ---
+def construir_indice_desde_pdf(pdf_path):
+    texto = extraer_texto_de_pdf(pdf_path)
+    chunks = procesar_texto_en_chunks(texto)
+    embeddings = embedding_model.encode(chunks, convert_to_numpy=True)
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(np.array(embeddings, dtype=np.float32))
+    return index, chunks
+
 # --- Función para responder preguntas ---
-def responder_pregunta(pregunta_usuario, k=2):
-    print(f"Buscando los {k} fragmentos más relevantes para: '{pregunta_usuario}'")
-    
-    # Codificar la pregunta
+def responder_pregunta(pregunta_usuario, k=3):
+    pdf_path = obtener_ultimo_pdf()
+    if not pdf_path:
+        return "No hay ningún PDF disponible para responder preguntas."
+
+    index, text_chunks = construir_indice_desde_pdf(pdf_path)
+
     query_embedding = embedding_model.encode(pregunta_usuario)
     query_embedding = np.array([query_embedding], dtype=np.float32)
-
-    # Buscar los fragmentos más cercanos
     distances, indices = index.search(query_embedding, k)
-    print(f"\n--- Recuperando los {k} fragmentos más relevantes ---")
-    fragmentos = [text_chunks[idx] for idx in indices[0] if idx < len(text_chunks)]
 
+    fragmentos = [text_chunks[idx] for idx in indices[0] if idx < len(text_chunks)]
     if not fragmentos:
-        return "Error: No se recuperaron fragmentos."
+        return "No se recuperaron fragmentos relevantes."
 
     contexto = "\n\n".join(fragmentos)
+    prompt = f"Pregunta: {pregunta_usuario}\n\nContexto:\n{contexto}\n\nRespuesta:"
 
-    # Construir el prompt
-    prompt = (
-        f"Pregunta: {pregunta_usuario}\n\n"
-        f"Contexto:\n{contexto}\n\n"
-        f"Respuesta:"
-    )
-
-    # Truncar si excede longitud segura para gpt-neo
     max_prompt_chars = 3500
     if len(prompt) > max_prompt_chars:
         prompt = prompt[:max_prompt_chars]
 
-    print("\n--- Generando respuesta con modelo de texto ---")
     respuesta_obj = generator(
         prompt,
         max_new_tokens=80,
@@ -73,18 +74,10 @@ def responder_pregunta(pregunta_usuario, k=2):
     )
 
     respuesta_generada = respuesta_obj[0]['generated_text']
-    
-    # Extraer la respuesta después de 'Respuesta:'
     partes = respuesta_generada.split("Respuesta:")
-    if len(partes) > 1:
-        return partes[-1].strip()
-    else:
-        return respuesta_generada.strip()
+    return partes[-1].strip() if len(partes) > 1 else respuesta_generada.strip()
 
-# --- Ejemplo de uso ---
+# --- Prueba local ---
 if __name__ == "__main__":
-    pregunta_ejemplo = "¿Qué aprendió el principito del zorro sobre domesticar?"
-    print("\nPregunta:", pregunta_ejemplo)
-    print("\nGenerando respuesta...")
-    respuesta = responder_pregunta(pregunta_ejemplo, k=2)
-    print("\nRespuesta FINAL del LLM:", respuesta)
+    pregunta = "¿Qué aprendió el principito del zorro sobre domesticar?"
+    print(responder_pregunta(pregunta))
