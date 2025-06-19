@@ -9,9 +9,9 @@ except ImportError as e:
     st.error(f"❌ No se puede importar responder_pregunta: {e}")
     st.stop()
 
-st.title("🪐 Pregúntale a tu PDF")
+st.title("🤖 Pregúntale a Plugo")
 
-st.markdown("Sube un archivo PDF o selecciona uno ya subido, y hazle preguntas al contenido.")
+st.markdown("Sube un archivo PDF o selecciona uno ya subido, y hazle preguntas al contenido con ayuda de Plugo")
 
 # Carpeta
 CARPETA_PDFS = "pdfs_subidos"
