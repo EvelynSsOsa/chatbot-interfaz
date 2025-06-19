@@ -1,6 +1,12 @@
 import streamlit as st
 import os
-from rag_system import responder_pregunta
+
+try:
+    from rag_system import responder_pregunta
+    st.success("✅ Importación de rag_system exitosa.")
+except Exception as e:
+    st.error(f"❌ Error al importar rag_system: {e}")
+    st.stop()
 
 st.set_page_config(page_title="Pregúntale al Principito", page_icon="🪐")
 st.title("🪐 Pregúntale al Principito")
@@ -29,3 +35,4 @@ if pregunta:
         respuesta = responder_pregunta(pregunta, nombre_pdf=nombre_pdf)
     st.success("Respuesta:")
     st.write(respuesta)
+
