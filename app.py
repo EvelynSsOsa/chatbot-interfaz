@@ -1,20 +1,45 @@
 import streamlit as st
 import os
-from rag_system import responder_pregunta
 
-st.set_page_config(page_title="📘 Preguntar PDF", layout="wide")
-st.title("🪐 Pregúntale al PDF")
+st.set_page_config(page_title="📘 Pregunta desde PDF", page_icon="🪐", layout="wide")
 
-archivos = [f for f in os.listdir("pdfs_subidos") if f.endswith(".pdf")]
-if not archivos:
-    st.warning("No hay PDFs subidos todavía. Ve a la pestaña ➕ **Subir PDF**.")
+try:
+    from rag_system import responder_pregunta
+except ImportError as e:
+    st.error(f"❌ No se puede importar responder_pregunta: {e}")
     st.stop()
 
-nombre_pdf = st.selectbox("Elige un PDF:", archivos)
-pregunta = st.text_input("Escribe tu pregunta:")
+st.title("🪐 Pregúntale a tu PDF")
+
+st.markdown("Sube un archivo PDF o selecciona uno ya subido, y hazle preguntas al contenido.")
+
+# Carpeta
+CARPETA_PDFS = "pdfs_subidos"
+os.makedirs(CARPETA_PDFS, exist_ok=True)
+
+# 🚀 Subida de PDF en la misma página
+with st.expander("📤 Subir nuevo PDF"):
+    archivo = st.file_uploader("Selecciona un archivo PDF:", type="pdf", key="uploader")
+    if archivo:
+        ruta = os.path.join(CARPETA_PDFS, archivo.name)
+        with open(ruta, "wb") as f:
+            f.write(archivo.getbuffer())
+        st.success(f"✅ PDF '{archivo.name}' subido correctamente.")
+        st.experimental_rerun()
+
+# Listado de PDFs
+pdfs = [f for f in os.listdir(CARPETA_PDFS) if f.lower().endswith(".pdf")]
+if not pdfs:
+    st.warning("Aún no tienes PDFs subidos. Sube uno primero.")
+    st.stop()
+
+seleccion = st.selectbox("Selecciona un PDF:", pdfs)
+
+# Input de pregunta
+pregunta = st.text_input("¿Qué quieres saber del PDF?")
 
 if pregunta:
-    with st.spinner("Consultando..."):
-        respuesta = responder_pregunta(pregunta, nombre_pdf=nombre_pdf)
-    st.success("📗 Respuesta:")
+    with st.spinner("Consultando el PDF..."):
+        respuesta = responder_pregunta(pregunta, nombre_pdf=seleccion)
+    st.success("✅ Respuesta obtenida:")
     st.write(respuesta)
