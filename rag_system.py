@@ -6,7 +6,7 @@ import torch
 import pickle
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
-from text_processor import procesar_texto_en_chunks
+from text_processor import procesar_texto as procesar_texto_en_chunks
 from pdf_extractor import extraer_texto_de_pdf
 
 # --- Modelos globales ---
