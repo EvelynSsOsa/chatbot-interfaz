@@ -1,11 +1,7 @@
-
-  # rag_system.py
-
 import os
 import faiss
 import numpy as np
 import torch
-import pickle
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
 from pdfminer.high_level import extract_text
@@ -21,22 +17,27 @@ def extraer_texto_de_pdf(nombre_pdf):
     texto = extract_text(ruta)
     return texto
 
+# --- Función principal
 def responder_pregunta(pregunta, nombre_pdf):
     texto = extraer_texto_de_pdf(nombre_pdf)
 
-    # Dividir en fragmentos
-    fragmentos = texto.split(". ")
-    fragmentos_embeddings = modelo_embeddings.encode(fragmentos)
+    # Preprocesar texto
+    texto = texto.replace("\n", " ").replace("  ", " ")
+    fragmentos = [f.strip() for f in texto.split(". ") if len(f.strip()) > 30 and len(f.strip()) < 500]
 
-    # Embedding de la pregunta
+    if not fragmentos:
+        return "No se pudo encontrar información útil en el PDF."
+
+    # Embeddings
+    fragmentos_embeddings = modelo_embeddings.encode(fragmentos)
     embedding_pregunta = modelo_embeddings.encode([pregunta])[0]
 
-    # Similitud
+    # Buscar el fragmento más relevante
     similitudes = np.dot(fragmentos_embeddings, embedding_pregunta)
     idx_mas_relevante = np.argmax(similitudes)
-    contexto = fragmentos[idx_mas_relevante]
+    contexto = fragmentos[idx_mas_relevante][:500]  # Limitar contexto
 
-    # Crear prompt más claro para gpt-neo
+    # Crear prompt
     prompt = (
         f"Basado en el siguiente contexto, responde con precisión a la pregunta.\n\n"
         f"Contexto: {contexto}\n"
@@ -44,15 +45,15 @@ def responder_pregunta(pregunta, nombre_pdf):
         f"Respuesta:"
     )
 
-    inputs = tokenizer(prompt, return_tensors="pt")
+    # Preparar entrada y generar respuesta
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
     outputs = modelo_lenguaje.generate(**inputs, max_new_tokens=100)
-
     salida = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    # Cortar todo lo anterior a la respuesta
+    # Extraer solo la respuesta
     if "Respuesta:" in salida:
         respuesta = salida.split("Respuesta:")[-1].strip()
     else:
         respuesta = salida.strip()
 
-    return respuesta
+    return respuesta if respuesta else "No encontré una respuesta clara en el documento."
