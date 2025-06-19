@@ -58,17 +58,15 @@ def construir_y_guardar(nombre_base_sin_ext, pdf_path):
 
     return index, chunks
 
-# --- Responder pregunta usando un PDF específico ---
 def responder_pregunta(pregunta_usuario, k=3, nombre_pdf=None):
     if nombre_pdf is None:
         nombre_pdf = obtener_ultimo_pdf()
         if not nombre_pdf:
             return "❌ No hay ningún PDF cargado."
 
-   nombre_pdf = nombre_pdf.replace(".pdf", "")
-nombre_base = nombre_pdf  # sin carpeta para que los .index y .pkl estén en raíz
-pdf_path = os.path.join("pdfs_subidos", nombre_pdf + ".pdf")
-
+    nombre_pdf = nombre_pdf.replace(".pdf", "")
+    nombre_base = nombre_pdf  # sin carpeta para que los .index y .pkl estén en raíz
+    pdf_path = os.path.join("pdfs_subidos", nombre_pdf + ".pdf")
 
     index, chunks = cargar_indice_y_chunks(nombre_base)
     if index is None or chunks is None:
@@ -99,6 +97,7 @@ pdf_path = os.path.join("pdfs_subidos", nombre_pdf + ".pdf")
     respuesta_generada = respuesta_obj[0]['generated_text']
     partes = respuesta_generada.split("Respuesta:")
     return partes[-1].strip() if len(partes) > 1 else respuesta_generada.strip()
+
 
 # --- Prueba local (opcional) ---
 if __name__ == "__main__":
