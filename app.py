@@ -10,7 +10,8 @@ except ImportError as e:
     st.stop()
 
 st.title("🪐 Pregúntale a Plugo")
-st.markdown("Sube un archivo PDF o selecciona uno ya subido, y hazle preguntas al contenido con ayuda de Plugo")
+st.markdown("Sube un archivo PDF o selecciona uno ya subido, y hazle preguntas al contenido con ayuda de **Plugo**.")
+
 
 # Carpeta
 CARPETA_PDFS = "pdfs_subidos"
@@ -40,5 +41,6 @@ pregunta = st.text_input("¿Qué quieres saber del PDF?")
 if pregunta:
     with st.spinner("Consultando el PDF..."):
         respuesta = responder_pregunta(pregunta, nombre_pdf=seleccion)
-    st.success("✅ Respuesta obtenida:")
-    st.write(respuesta)
+   with st.chat_message("assistant"):
+    st.markdown(f"🧠 **Plugo dice:**\n\n{respuesta}")
+
