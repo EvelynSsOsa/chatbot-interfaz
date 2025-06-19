@@ -72,7 +72,6 @@ pdf_path = os.path.join("pdfs_subidos", nombre_pdf + ".pdf")
 
     index, chunks = cargar_indice_y_chunks(nombre_base)
     if index is None or chunks is None:
-        pdf_path = nombre_base + ".pdf"
         index, chunks = construir_y_guardar(nombre_base, pdf_path)
 
     query_embedding = embedding_model.encode(pregunta_usuario)
