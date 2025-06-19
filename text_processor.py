@@ -8,7 +8,7 @@ import numpy as np
 # Cargar el modelo una sola vez
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
-def procesar_texto(texto: str):
+def procesar_texto_en_chunks(texto: str):
     """
     Divide un texto en párrafos, genera embeddings y retorna una lista de diccionarios.
     Cada diccionario tiene 'text' y 'embedding'.
