@@ -1,3 +1,5 @@
+# rag_system.py
+
 import os
 import faiss
 import numpy as np
@@ -23,7 +25,7 @@ def responder_pregunta(pregunta, nombre_pdf):
 
     # Preprocesar texto
     texto = texto.replace("\n", " ").replace("  ", " ")
-    fragmentos = [f.strip() for f in texto.split(". ") if len(f.strip()) > 30 and len(f.strip()) < 500]
+    fragmentos = [f.strip() for f in texto.split(". ") if 30 < len(f.strip()) < 400]
 
     if not fragmentos:
         return "No se pudo encontrar información útil en el PDF."
@@ -35,25 +37,20 @@ def responder_pregunta(pregunta, nombre_pdf):
     # Buscar el fragmento más relevante
     similitudes = np.dot(fragmentos_embeddings, embedding_pregunta)
     idx_mas_relevante = np.argmax(similitudes)
-    contexto = fragmentos[idx_mas_relevante][:500]  # Limitar contexto
+    contexto = fragmentos[idx_mas_relevante][:400]
 
-    # Crear prompt
-    prompt = (
-        f"Basado en el siguiente contexto, responde con precisión a la pregunta.\n\n"
-        f"Contexto: {contexto}\n"
-        f"Pregunta: {pregunta}\n"
-        f"Respuesta:"
-    )
+    # Crear prompt sin repetir la pregunta y más claro para gpt-neo
+    prompt = f"Contexto: {contexto}\n\nResponde de forma clara y precisa a esta pregunta:\n{pregunta}\n\nRespuesta:"
 
-    # Preparar entrada y generar respuesta
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
-    outputs = modelo_lenguaje.generate(**inputs, max_new_tokens=100)
+    outputs = modelo_lenguaje.generate(**inputs, max_new_tokens=100, pad_token_id=tokenizer.eos_token_id)
     salida = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    # Extraer solo la respuesta
-    if "Respuesta:" in salida:
-        respuesta = salida.split("Respuesta:")[-1].strip()
-    else:
-        respuesta = salida.strip()
+    # Extraer solo la respuesta generada
+    respuesta = salida.replace(prompt, "").strip()
 
-    return respuesta if respuesta else "No encontré una respuesta clara en el documento."
+    # En caso de que la respuesta esté vacía o poco clara
+    if not respuesta or respuesta.lower() in prompt.lower():
+        return "Lo siento, no encontré una respuesta clara en el PDF."
+
+    return respuesta
