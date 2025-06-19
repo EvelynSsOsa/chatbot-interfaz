@@ -41,6 +41,7 @@ pregunta = st.text_input("¿Qué quieres saber del PDF?")
 if pregunta:
     with st.spinner("Consultando el PDF..."):
         respuesta = responder_pregunta(pregunta, nombre_pdf=seleccion)
-   with st.chat_message("assistant"):
-    st.markdown(f"🧠 **Plugo dice:**\n\n{respuesta}")
+    
+    with st.chat_message("assistant"):
+        st.markdown(f"🧠 **Plugo dice:**\n\n{respuesta}")
 
