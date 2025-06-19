@@ -6,7 +6,6 @@ import torch
 import pickle
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
-from text_processor import procesar_texto as procesar_texto_en_chunks
 from pdf_extractor import extraer_texto_de_pdf
 
 # --- Modelos globales ---
@@ -102,3 +101,19 @@ def responder_pregunta(pregunta_usuario, k=3, nombre_pdf=None):
 # --- Prueba local (opcional) ---
 if __name__ == "__main__":
     print(responder_pregunta("¿Qué aprendió el principito del zorro sobre domesticar?"))
+def procesar_texto_en_chunks(texto: str):
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
+
+    model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+
+    paragraphs = [p.strip() for p in texto.split('\n\n') if p.strip()]
+    chunks_with_embeddings = []
+    for paragraph in paragraphs:
+        cleaned_paragraph = paragraph.replace('\n', ' ').replace('  ', ' ')
+        embedding = model.encode(cleaned_paragraph)
+        chunks_with_embeddings.append({
+            'text': paragraph,
+            'embedding': embedding
+        })
+    return chunks_with_embeddings
