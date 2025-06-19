@@ -1,7 +1,5 @@
 # text_processor.py
 
-# pip install sentence-transformers torch
-
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
@@ -27,3 +25,4 @@ def procesar_texto_en_chunks(texto: str):
         })
 
     return chunks_with_embeddings
+
