@@ -21,10 +21,9 @@ def extraer_texto_de_pdf(nombre_pdf):
     texto = extract_text(ruta)
     return texto
 
-# --- Función principal
 def responder_pregunta(pregunta, nombre_pdf):
     texto = extraer_texto_de_pdf(nombre_pdf)
-    
+
     # Dividir en fragmentos
     fragmentos = texto.split(". ")
     fragmentos_embeddings = modelo_embeddings.encode(fragmentos)
@@ -37,10 +36,23 @@ def responder_pregunta(pregunta, nombre_pdf):
     idx_mas_relevante = np.argmax(similitudes)
     contexto = fragmentos[idx_mas_relevante]
 
-    # Construir prompt y responder
-    prompt = f"Contexto: {contexto}\nPregunta: {pregunta}\nRespuesta:"
+    # Crear prompt más claro para gpt-neo
+    prompt = (
+        f"Basado en el siguiente contexto, responde con precisión a la pregunta.\n\n"
+        f"Contexto: {contexto}\n"
+        f"Pregunta: {pregunta}\n"
+        f"Respuesta:"
+    )
+
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = modelo_lenguaje.generate(**inputs, max_new_tokens=100)
-    respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    return respuesta.replace(prompt, "").strip()
+    salida = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Cortar todo lo anterior a la respuesta
+    if "Respuesta:" in salida:
+        respuesta = salida.split("Respuesta:")[-1].strip()
+    else:
+        respuesta = salida.strip()
+
+    return respuesta
